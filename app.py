@@ -49,7 +49,7 @@ def set_background(image_file):
 
 # ---------- LOGIN PAGE ----------
 def login_page():
-    set_background("assets/images/background.jpg")
+set_background("background.jpg")
 
     # Center using Streamlit layout (safe way)
     col1, col2, col3 = st.columns([1, 1.2, 1])
@@ -125,4 +125,5 @@ else:
         show_order()
 
     elif page == "Prediction":
+
         show_prediction()
