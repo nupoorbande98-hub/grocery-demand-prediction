@@ -1,78 +1,73 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 def show_prediction():
 
-    st.title("🤖 Grocery Demand Prediction")
+    st.title("🤖 Grocery Demand Prediction (ML Model)")
 
-    # ---------------- Upload CSV ----------------
-    uploaded_file = st.file_uploader("📂 Upload Sales CSV File", type=["csv"])
+    uploaded_file = st.file_uploader("Upload Sales CSV", type=["csv"])
 
-    # ---------------- Default Sample Data ----------------
-    sample_data = pd.DataFrame({
-        "Item": ["Apple", "Apple", "Orange", "Orange", "Kiwi", "Kiwi", "Apricot", "Apricot"],
-        "Sales": [50, 60, 30, 35, 20, 25, 15, 18]
-    })
-
-    # ---------------- Decide Data Source ----------------
     if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
-            st.success("✅ Using Uploaded CSV Data")
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
+
+        df = pd.read_csv(uploaded_file)
+
+        st.subheader("Uploaded Data")
+        st.dataframe(df)
+
+        # Check columns
+        if "Item" not in df.columns or "Sales" not in df.columns:
+            st.error("CSV must contain Item and Sales columns")
             return
+
+        # Add Day column automatically
+        df["Day"] = range(1, len(df) + 1)
+
+        # Item selection
+        selected_item = st.selectbox("Select Item", df["Item"].unique())
+
+        item_data = df[df["Item"] == selected_item]
+
+        if len(item_data) < 2:
+            st.warning("Not enough data to train model")
+            return
+
+        # ---------------- ML MODEL TRAINING ----------------
+
+        X = item_data[["Day"]]   # Feature
+        y = item_data["Sales"]   # Target
+
+        model = LinearRegression()
+        model.fit(X, y)
+
+        st.success("Linear Regression Model Trained Successfully")
+
+        # ---------------- Prediction ----------------
+
+        future_days = st.slider("Select Future Days", 1, 30, 7)
+
+        last_day = item_data["Day"].max()
+        future_X = np.array(range(last_day+1, last_day+future_days+1)).reshape(-1,1)
+
+        predictions = model.predict(future_X)
+
+        total_prediction = int(sum(predictions))
+
+        st.success(f"Predicted demand for {selected_item}: {total_prediction} units")
+
+        # ---------------- Graph ----------------
+
+        fig, ax = plt.subplots()
+
+        ax.scatter(X, y)
+        ax.plot(future_X, predictions)
+        ax.set_xlabel("Days")
+        ax.set_ylabel("Sales")
+        ax.set_title("Linear Regression Prediction")
+
+        st.pyplot(fig)
+
     else:
-        df = sample_data
-        st.info("📌 No CSV uploaded. Using Sample Data.")
-
-    # ---------------- Show Data ----------------
-    st.subheader("📊 Sales Data")
-    st.dataframe(df)
-
-    # ---------------- Check Required Columns ----------------
-    required_columns = ["Item", "Sales"]
-
-    if not all(col in df.columns for col in required_columns):
-        st.error("❌ Data must contain 'Item' and 'Sales' columns")
-        return
-
-    # Remove missing values
-    df = df.dropna()
-
-    # ---------------- Item Selection ----------------
-    item_list = df["Item"].unique()
-    selected_item = st.selectbox("🛒 Select Grocery Item", item_list)
-
-    days = st.slider("📅 Select Number of Future Days", 1, 30, 7)
-
-    # ---------------- Prediction Logic ----------------
-    item_data = df[df["Item"] == selected_item]
-
-    if item_data.empty:
-        st.warning("⚠ No sales data available for selected item")
-        return
-
-    avg_sales = item_data["Sales"].mean()
-    predicted_sales = avg_sales * days
-
-    # ---------------- Prediction Output ----------------
-    st.success(
-        f"📦 Predicted Sales for **{selected_item}** in **{days} days**: "
-        f"**{int(predicted_sales)} units**"
-    )
-
-    # ---------------- Graph ----------------
-    future_days = list(range(1, days + 1))
-    future_prediction = [avg_sales * d for d in future_days]
-
-    fig, ax = plt.subplots(figsize=(8,4))
-
-    ax.plot(future_days, future_prediction, marker='o')
-    ax.set_xlabel("Days")
-    ax.set_ylabel("Predicted Sales")
-    ax.set_title(f"Prediction Trend for {selected_item}")
-    ax.grid(True)
-
-    st.pyplot(fig)
+        st.info("Please upload dataset")
